@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Oral Screening — Creative Demo</title>
+<style>
+  :root{
+    --accent:#0b63d6;
+    --muted:#6b7280;
+    --card:#ffffff;
+    --glass: rgba(255,255,255,0.08);
+    --success:#0f9d58;
+    --warn:#f59e0b;
+    --danger:#ef4444;
+    --shadow: 0 8px 30px rgba(7,11,25,0.08);
+    --radius:14px;
+    --maxw:980px;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Arial; background: linear-gradient(160deg,#061826 0%, #092a3a 50%, #0b2e3f 100%); color:#eaf2ff;}
+  .wrap{max-width:var(--maxw);margin:28px auto;padding:28px;border-radius:20px;box-shadow:var(--shadow);background:
+    radial-gradient(circle at 10% 10%, rgba(255,255,255,0.03), transparent 10%),
+    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.00));backdrop-filter: blur(6px);}
+  header{display:flex;gap:16px;align-items:center;}
+  .logo {width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#2aa4ff);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;box-shadow: 0 6px 18px rgba(11,99,214,0.18);}
+  h1{margin:0;font-size:1.35rem}
+  p.lead{margin:6px 0 0;color:var(--muted);font-size:0.95rem}
+
+  .grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+  .card{background:var(--card);color:#0b1b2b;border-radius:var(--radius);padding:16px;box-shadow: 0 8px 30px rgba(2,6,23,0.06)}
+  .card .title{font-weight:700;margin-bottom:8px}
+  .drop{border:2px dashed rgba(11,99,214,0.16);padding:14px;border-radius:12px;text-align:center;cursor:pointer;background:#f6fbff;}
+  .drop.dragover{border-color:var(--accent);transform:translateY(-4px);transition:all .12s ease;}
+  input[type=file]{display:none}
+
+  .preview{display:flex;flex-direction:column;align-items:center;gap:8px}
+  #preview{max-width:100%;border-radius:10px;border:1px solid #e6eefb}
+  .controls{display:flex;gap:8px;margin-top:8px}
+  button{background:var(--accent);color:#fff;border:0;padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+  .alt{background:#efefef;color:#12202b}
+  .small{font-size:0.85rem;color:#475569}
+
+  .side{position:relative; overflow:hidden}
+  .side .info{font-size:0.95rem;color:#243447}
+  .webcamCanvas{display:none}
+
+  .resultBox{margin-top:12px;padding:12px;border-radius:10px;background:linear-gradient(180deg,#f8fafc,#edf6ff);border:1px solid #e6f0fb}
+  .resultHeader{display:flex;align-items:center;gap:12px}
+  .badge{padding:6px 10px;border-radius:8px;font-weight:700}
+  .badge.success{background:rgba(16,185,129,0.12);color:var(--success)}
+  .badge.warn{background:rgba(245,158,11,0.12);color:var(--warn)}
+  .badge.danger{background:rgba(239,68,68,0.08);color:var(--danger)}
+  .advice{margin-top:10px;padding:12px;border-radius:8px;background:#fff; color:#052033;border:1px solid #e6eefb}
+
+  footer{margin-top:18px;font-size:0.85rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+
+  /* webcam modal */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(2,6,23,0.6), rgba(2,6,23,0.88));z-index:50}
+  .modal.open{display:flex}
+  .modal .mcard{background:#fff;padding:14px;border-radius:12px;width:540px;max-width:92%}
+  video{width:100%;border-radius:10px;background:#111}
+
+  /* responsive */
+  @media (max-width:900px){ .grid{grid-template-columns:1fr; } .side{order:-1} .logo{width:52px;height:52px}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">OS</div>
+      <div>
+        <h1>Oral Screening — Biomedical Demo</h1>
+        <p class="lead">Educational screening assistant for oral mucosa images. Not a clinical diagnosis — see advice below depending on results.</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Upload / Preview -->
+      <div class="card">
+        <div class="title">Provide an image</div>
+
+        <div class="drop" id="dropZone" title="Click to choose or drop image">
+          <div class="small">Click here or drag & drop an image</div>
+          <div class="small" style="margin-top:8px;color:#0b63d6">Accepted: photos of inner mouth / lesions (jpg, png)</div>
+          <input id="fileInput" type="file" accept="image/*"/>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+          <button id="openCam">Open Webcam</button>
+          <button id="pasteUrl" class="alt">Paste Image URL</button>
+          <button id="clearAll" class="alt">Clear</button>
+        </div>
+
+        <div class="preview" id="previewWrap" style="margin-top:12px;display:none">
+          <canvas id="previewCanvas" width="480" height="360" style="max-width:100%;border-radius:10px;border:1px solid #e6eefb"></canvas>
+          <div class="controls">
+            <button id="analyzeBtn" disabled>Analyze Image</button>
+            <button id="downloadBtn" class="alt">Download Copy</button>
+          </div>
+          <div class="small">Tip: for better results, take a close, well-lit photo focusing on the lesion area.</div>
+        </div>
+
+        <div style="margin-top:14px;color:#0b1b2b" id="statusMessage"></div>
+      </div>
+
+      <!-- RIGHT: Info / Results -->
+      <div class="side">
+        <div class="card">
+          <div class="title">Results & Guidance</div>
+          <div class="info">After analysis, you'll receive a predicted category, a confidence score, and tailored advice. If urgent, consult a clinician immediately.</div>
+
+          <div id="resultArea" class="resultBox" style="display:none">
+            <div class="resultHeader">
+              <div style="font-size:1.1rem;font-weight:800" id="predLabel">—</div>
+              <div id="predBadge" class="badge">—</div>
+            </div>
+            <div style="margin-top:8px"><strong>Confidence:</strong> <span id="predConf">—</span></div>
+
+            <div id="categoryAdvice" class="advice">
+              Personalized guidance will appear here based on prediction & confidence.
+            </div>
+            <div style="margin-top:10px" id="extraActions"></div>
+          </div>
+
+          <div style="margin-top:12px" id="history">
+            <div class="small">Recent run logs:</div>
+            <pre id="log" style="background:#fbfdff;padding:8px;border-radius:8px;height:180px;overflow:auto;border:1px solid #eef6ff;font-size:0.86rem;color:#052033">No runs yet.</pre>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+
+        <div class="card">
+          <div class="title">About categories</div>
+          <div style="margin-top:8px" class="small">
+            <strong>cancer</strong>: Lesion shows features suggestive of malignancy.<br>
+            <strong>opmd</strong>: Potentially malignant disorder — needs monitoring or biopsy.<br>
+            <strong>benign</strong>: Likely non-malignant lesion.<br>
+            <strong>non_cancerous</strong>: Normal mucosa or non-related finding.<br>
+            <em>Note:</em> this tool is educational — clinical judgement and biopsy are the gold standard.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div>Made for educational biomedical screening • Do not use for clinical decisions</div>
+      <div class="small">Local run — model served from your machine</div>
+    </footer>
+  </div>
+
+  <!-- Webcam modal -->
+  <div class="modal" id="camModal">
+    <div class="mcard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:800">Webcam Capture</div>
+        <div style="display:flex;gap:8px">
+          <button id="snap" class="alt">Capture</button>
+          <button id="closeCam" class="alt">Close</button>
+        </div>
+      </div>
+      <video id="video" autoplay playsinline></video>
+      <div style="margin-top:8px;font-size:0.85rem;color:#334155">Position the camera to capture the lesion area. Use good lighting.</div>
+    </div>
+  </div>
+
+<script>
+  // Helpers & elements
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const previewWrap = document.getElementById('previewWrap');
+  const previewCanvas = document.getElementById('previewCanvas');
+  const ctx = previewCanvas.getContext('2d');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  const statusMessage = document.getElementById('statusMessage');
+  const resultArea = document.getElementById('resultArea');
+  const predLabel = document.getElementById('predLabel');
+  const predBadge = document.getElementById('predBadge');
+  const predConf = document.getElementById('predConf');
+  const categoryAdvice = document.getElementById('categoryAdvice');
+  const logEl = document.getElementById('log');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  // Webcam elements
+  const camModal = document.getElementById('camModal');
+  const video = document.getElementById('video');
+  const openCam = document.getElementById('openCam');
+  const closeCam = document.getElementById('closeCam');
+  const snapBtn = document.getElementById('snap');
+
+  let currentBlob = null;
+  let lastRunIndex = 0;
+
+  function log(msg){
+    const time = new Date().toLocaleString();
+    logEl.textContent = `${time} - ${msg}\n` + logEl.textContent;
+  }
+
+  // Image load & draw into canvas
+  async function loadImageToCanvas(blobOrUrl){
+    let img = new Image();
+    img.crossOrigin = "anonymous";
+    return new Promise((resolve, reject) => {
+      img.onload = () => {
+        // set canvas size to maintain aspect ratio, max width 640
+        const maxW = 640;
+        const ratio = img.width / img.height;
+        let w = Math.min(maxW, img.width);
+        let h = Math.round(w / ratio);
+        previewCanvas.width = w;
+        previewCanvas.height = h;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0,0,w,h);
+        ctx.drawImage(img, 0, 0, w, h);
+        previewWrap.style.display = 'flex';
+        analyzeBtn.disabled = false;
+        statusMessage.textContent = '';
+        resolve();
+      };
+      img.onerror = (e)=> reject(e);
+
+      if (typeof blobOrUrl === 'string') img.src = blobOrUrl;
+      else img.src = URL.createObjectURL(blobOrUrl);
+    });
+  }
+
+  // convert canvas to blob
+  function canvasToBlob(){
+    return new Promise(resolve => {
+      previewCanvas.toBlob(b => {
+        resolve(b);
+      }, 'image/jpeg', 0.9);
+    });
+  }
+
+  // Drag & Drop
+  ;['dragenter','dragover'].forEach(evt => {
+    dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropZone.classList.add('dragover'); });
+  });
+  ;['dragleave','drop'].forEach(evt => {
+    dropZone.addEventListener(evt, (e)=>{ e.preventDefault(); e.stopPropagation(); dropZone.classList.remove('dragover'); });
+  });
+
+  dropZone.addEventListener('click', ()=> fileInput.click());
+
+  dropZone.addEventListener('drop', async (e)=>{
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) { alert('Please drop an image file'); return; }
+    currentBlob = f;
+    await loadImageToCanvas(f);
+    log('Dropped image loaded');
+  });
+
+  // file input
+  fileInput.addEventListener('change', async (e)=>{
+    const f = e.target.files[0]; if (!f) return;
+    if (!f.type.startsWith('image/')) { alert('Select image'); return; }
+    currentBlob = f;
+    await loadImageToCanvas(f);
+    log('Selected image loaded');
+  });
+
+  // Paste URL option
+  document.getElementById('pasteUrl').addEventListener('click', async ()=>{
+    const url = prompt('Paste a direct image URL (must allow CORS):');
+    if (!url) return;
+    statusMessage.textContent = 'Loading image from URL...';
+    try{
+      // try to fetch as blob to allow canvas drawing
+      const res = await fetch(url, {mode:'cors'});
+      if (!res.ok) throw new Error('Unable to fetch image');
+      const blob = await res.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('URL is not an image');
+      currentBlob = blob;
+      await loadImageToCanvas(blob);
+      log('Image loaded from URL');
+    }catch(err){
+      statusMessage.textContent = 'Failed to load URL image: ' + err.message;
+      log('URL load error: ' + err.message);
+    }
+  });
+
+  // Download preview
+  downloadBtn.addEventListener('click', async ()=>{
+    const blob = await canvasToBlob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'oral_preview.jpg';
+    a.click();
+  });
+
+  // Webcam logic
+  let streamRef = null;
+  openCam.addEventListener('click', async ()=>{
+    camModal.classList.add('open');
+    try{
+      streamRef = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
+      video.srcObject = streamRef;
+      await video.play();
+    }catch(err){
+      alert('Unable to open camera: ' + err.message);
+      camModal.classList.remove('open');
+    }
+  });
+
+  closeCam.addEventListener('click', async ()=>{
+    camModal.classList.remove('open');
+    if (streamRef){
+      streamRef.getTracks().forEach(t=>t.stop());
+      streamRef = null;
+    }
+  });
+
+  snapBtn.addEventListener('click', async ()=>{
+    const w = video.videoWidth, h = video.videoHeight;
+    const maxW = 640;
+    const ratio = w/h;
+    const drawW = Math.min(maxW, w);
+    const drawH = Math.round(drawW / ratio);
+    previewCanvas.width = drawW; previewCanvas.height = drawH;
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,drawW,drawH);
+    ctx.drawImage(video, 0, 0, drawW, drawH);
+    previewWrap.style.display = 'flex';
+    analyzeBtn.disabled = false;
+    currentBlob = await canvasToBlob();
+    log('Captured image from webcam');
+    closeCam.click();
+  });
+
+  // analyze / send to backend
+  analyzeBtn.addEventListener('click', async ()=>{
+    analyzeBtn.disabled = true;
+    statusMessage.textContent = 'Uploading & analyzing...';
+    resultArea.style.display = 'none';
+
+    try{
+      let blobToSend = currentBlob;
+      if (!blobToSend){
+        blobToSend = await canvasToBlob();
+      } else {
+        if (!(blobToSend instanceof Blob)) blobToSend = await canvasToBlob();
+      }
+
+      const fd = new FormData();
+      fd.append('image', blobToSend, 'upload.jpg');
+
+      // Update the API endpoint to include the full URL
+      const apiUrl = `${window.location.origin}/api/analyze`;
+
+      const res = await fetch(apiUrl, {method:'POST', body: fd});
+      const data = await res.json();
+
+      if (!res.ok) {
+        statusMessage.textContent = 'Server error: ' + (data.error || JSON.stringify(data));
+        log('API error: ' + (data.error || JSON.stringify(data)));
+        analyzeBtn.disabled = false;
+        return;
+      }
+
+      const rawLabel = (data.summary || '').replace(/Predicted as\s*/i,'').trim();
+      const label = rawLabel || 'unknown';
+      const confidence = Number(data.confidence ?? 0);
+
+      predLabel.textContent = label.toUpperCase();
+      predConf.textContent = (confidence*100).toFixed(1) + '%';
+
+      // ✅ Add oncologist suggestion for moderate/high
+      if (confidence >= 0.50) {
+        predConf.textContent += " — Consider consulting an oncologist for further evaluation.";
+      }
+
+      let level = 'low';
+      if (confidence >= 0.75) level = 'high';
+      else if (confidence >= 0.50) level = 'medium';
+
+      predBadge.className = 'badge';
+      if (label.toLowerCase() === 'cancer') predBadge.classList.add(level==='high' ? 'danger' : level==='medium' ? 'warn' : 'warn');
+      else if (label.toLowerCase() === 'opmd') predBadge.classList.add(level==='high' ? 'warn' : 'warn');
+      else predBadge.classList.add('success');
+
+      predBadge.textContent = level === 'high' ? 'High' : level === 'medium' ? 'Moderate' : 'Low';
+
+      const adv = generateAdvice(label.toLowerCase(), confidence, level);
+      categoryAdvice.innerHTML = adv.html;
+      const actions = adv.actions || '';
+      document.getElementById('extraActions').innerHTML = actions;
+
+      resultArea.style.display = 'block';
+      statusMessage.textContent = '';
+      log(`Predicted ${label} @ ${(confidence*100).toFixed(1)}%`);
+    }catch(err){
+      statusMessage.textContent = 'Network or processing error: ' + err.message;
+      log('Analyze error: ' + err.message);
+    }finally{
+      analyzeBtn.disabled = false;
+    }
+  });
+
+  function generateAdvice(label, confidence, level){
+    const confPct = (confidence*100).toFixed(1);
+    if (label.includes('cancer')){
+      let html = `<strong>Interpretation:</strong> Model indicates features suspicious for malignancy.<br/>
+                  Confidence: <strong>${confPct}%</strong>.<br/><br/>
+                  <strong>Recommended action:</strong><ul>
+                    <li>If confidence is <strong>high</strong> (≥75%): seek immediate clinical evaluation with an oral surgeon/ENT/oncologist and request biopsy.</li>
+                    <li>If confidence is <strong>moderate</strong> (50–75%): arrange appointment within 1–2 weeks for clinical assessment and possible biopsy.</li>
+                    <li>If confidence is <strong>low</strong> (<50%): retake a clear image or consult a primary dental clinician for triage.</li>
+                  </ul>
+                  <strong>Why:</strong> Early diagnosis significantly improves outcomes for oral malignancies.`;
+      const actions = `<div style="margin-top:10px"><a href="https://www.who.int" target="_blank" class="alt" style="padding:8px 10px;border-radius:8px;text-decoration:none;border:1px solid #e6eefb;color:#052033;background:#fff">Find local cancer resources</a></div>`;
+      return {html, actions};
+    }
+
+    if (label.includes('opmd')){
+      let html = `<strong>Interpretation:</strong> Lesion classified as <em>OPMD</em> (potentially malignant).<br/>
+                  Confidence: <strong>${confPct}%</strong>.<br/><br/>
+                  <strong>Recommended action:</strong><ul>
+                    <li><em>High</em>: urgent specialist review and consider biopsy or close follow-up.</li>
+                    <li><em>Moderate</em>: make an appointment within 2–4 weeks for clinical exam and monitoring.</li>
+                    <li><em>Low</em>: monitor and capture periodic photos; seek dental review if lesion changes.</li>
+                  </ul>
+                  <strong>Why:</strong> OPMDs carry variable risk — surveillance and histopathology guide management.`;
+      const actions = `<div style="margin-top:10px"><button class="alt" onclick="alert('Please book a dental/oral medicine appointment for clinical evaluation.')">How to see a specialist</button></div>`;
+      return {html, actions};
+    }
+
+    if (label.includes('benign')){
+      let html = `<strong>Interpretation:</strong> Lesion appears likely benign.<br/>Confidence: <strong>${confPct}%</strong>.<br/><br/>
+                  <strong>Recommended action:</strong><ul>
+                    <li><em>High</em>: routine dental follow-up and photo documentation in 4–8 weeks.</li>
+                    <li><em>Moderate</em>: observe and re-check if changes occur.</li>
+                    <li><em>Low</em>: consider specialist review if symptoms (pain, growth, bleeding) present.</li>
+                  </ul>
+                  <strong>Patient advice:</strong> maintain oral hygiene, avoid irritants (tobacco, alcohol), and monitor for symptoms.`;
+      return {html};
+    }
+
+    let html = `<strong>Interpretation:</strong> No concerning features detected; likely normal mucosa or non-cancerous finding.<br/>Confidence: <strong>${confPct}%</strong>.<br/><br/>
+                <strong>Recommended action:</strong><ul>
+                  <li>If symptoms (pain, persistent sore, growth) persist >2 weeks: consult dentist or physician.</li>
+                  <li>Otherwise: routine dental check-ups and self-monitoring.</li>
+                </ul>`;
+    return {html};
+  }
+
+  log('UI ready');
+</script>
+</body>
+</html>
