@@ -1,9 +1,10 @@
+index (1).html
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Oral Screening — Creative Demo</title>
+<title>Oral Screening — Creative </title>
 <style>
   :root{
     --accent:#0b63d6;
@@ -345,10 +346,7 @@
       const fd = new FormData();
       fd.append('image', blobToSend, 'upload.jpg');
 
-      // Update the API endpoint to include the full URL
-      const apiUrl = `${window.location.origin}/api/analyze`;
-
-      const res = await fetch(apiUrl, {method:'POST', body: fd});
+      const res = await fetch('/api/analyze', {method:'POST', body: fd});
       const data = await res.json();
 
       if (!res.ok) {
