@@ -1,5 +1,29 @@
+# Add a guard around imports to provide clear install instructions if tensorflow is missing.
 import os, json
-import tensorflow as tf
+import sys
+
+try:
+    import tensorflow as tf
+except ImportError as e:
+    print("Missing Python package:", e, file=sys.stderr)
+    print("", file=sys.stderr)
+    print("To install required packages, run one of the following:", file=sys.stderr)
+    print("  1) Use the helper script (recommended):", file=sys.stderr)
+    print("       ./setup.sh", file=sys.stderr)
+    print("     Then activate the venv and run: source venv/bin/activate && python train.py", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("  2) Or install manually:", file=sys.stderr)
+    print("     For macOS Apple Silicon (M1/M2):", file=sys.stderr)
+    print("       python -m venv venv && source venv/bin/activate", file=sys.stderr)
+    print("       pip install --upgrade pip", file=sys.stderr)
+    print("       pip install tensorflow-macos tensorflow-metal scikit-learn numpy Pillow", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("     For Linux/Intel/macOS Intel:", file=sys.stderr)
+    print("       python -m venv venv && source venv/bin/activate", file=sys.stderr)
+    print("       pip install --upgrade pip", file=sys.stderr)
+    print("       pip install tensorflow scikit-learn numpy Pillow", file=sys.stderr)
+    sys.exit(1)
+
 from sklearn.utils.class_weight import compute_class_weight
 import numpy as np
 
@@ -102,4 +126,6 @@ print(f"Labels saved to {LABELS_PATH}")
 loaded_model = tf.keras.models.load_model(MODEL_PATH)
 loaded_model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
 print("Loaded model compiled successfully.")
+
+
 
